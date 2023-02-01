@@ -1,28 +1,40 @@
 /* eslint-disable react/style-prop-object */
 /* eslint-disable import/no-webpack-loader-syntax */
-import React, { useState } from "react";
+import React from "react";
 import "./style.scss";
-import Map, { GeolocateControl, Marker, NavigationControl } from "react-map-gl";
+import Map, { GeolocateControl, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import Input from "../Input";
 import { getAdresse } from "../../services/services";
+import mapboxgl from "mapbox-gl";
 
 const Maps = () => {
-  const [lng, setLng] = useState(2.347);
-  const [lat, setLat] = useState(48.859);
-  const [zoom, setZoom] = useState(8);
+  //use ref
+  const mapRef = React.useRef();
 
   const handleSubmit = (event) => {
     event.preventDefault();
     getAdresse(event.target[0].value).then((data) => {
-      setLng(data.features[0].geometry.coordinates[0]);
-      setLat(data.features[0].geometry.coordinates[1]);
-      setZoom(12);
+      if (mapRef.current) {
+        const marker = new mapboxgl.Marker({ draggable: true });
+
+        marker.setLngLat([
+          data.features[0].geometry.coordinates[0],
+          data.features[0].geometry.coordinates[1],
+        ]);
+
+        mapRef.current
+          .flyTo({
+            center: [
+              data.features[0].geometry.coordinates[0],
+              data.features[0].geometry.coordinates[1],
+            ],
+            zoom: 15,
+          })
+          .addTo(marker);
+      }
     });
   };
-
-  //use ref
-  const mapRef = React.useRef();
 
   const geolocateControlRef = React.useCallback((ref) => {
     if (ref) {
@@ -33,26 +45,8 @@ const Maps = () => {
 
   const onMapLoad = React.useCallback(() => {
     console.log("useCallback");
-    mapRef.current.on("move", (event) => {
-      console.log(event);
-      setLng(event.viewState.longitude);
-      setLat(event.viewState.latitude);
-    });
+    mapRef.current.on("move", (event) => {});
   }, []);
-
-  const renderSidebar = React.useMemo(() => {
-    console.log("renderSidebar");
-    return (
-      <div className="sidebar">
-        Longitude: {lng} | Latitude: {lat} | zoom: {zoom}
-      </div>
-    );
-  }, [lng, lat, zoom]);
-
-  const renderMarker = React.useMemo(() => {
-    console.log("renderMarker");
-    <Marker longitude={lng} latitude={lat} anchor="center" />;
-  }, [lng, lat]);
 
   const renderMap = React.useMemo(() => {
     console.log("renderMap");
@@ -67,12 +61,11 @@ const Maps = () => {
           width: "100vw",
         }}
       >
-        {renderMarker}
         <NavigationControl />
         <GeolocateControl ref={geolocateControlRef} trackUserLocation="false" />
       </Map>
     );
-  }, [renderMarker, geolocateControlRef, onMapLoad]);
+  }, [geolocateControlRef, onMapLoad]);
 
   console.log("rerender");
   return (
@@ -80,7 +73,6 @@ const Maps = () => {
       <form onSubmit={handleSubmit}>
         <Input />
       </form>
-      {renderSidebar}
       {renderMap}
     </div>
   );
